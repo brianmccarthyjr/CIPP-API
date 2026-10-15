@@ -1,0 +1,40 @@
+name: Sync upstream
+
+# Nightly merge of KelvinTegelaar/CIPP-API into this fork. Merges, never discards.
+# If upstream conflicts with our files the job fails and nothing is pushed.
+# Push uses SYNC_PAT so the Function App deploy workflow fires on it.
+
+on:
+  schedule:
+    - cron: '17 6 * * *' # 2:17 AM Eastern (EDT); 1:17 AM in winter
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_PAT }}
+
+      - name: Merge upstream master
+        run: |
+          git config user.name "brianmccarthyjr"
+          git config user.email "30422514+brianmccarthyjr@users.noreply.github.com"
+          git remote add upstream https://github.com/KelvinTegelaar/CIPP-API.git
+          git fetch upstream master
+          if git merge-base --is-ancestor upstream/master HEAD; then
+            echo "Already up to date with upstream."
+            exit 0
+          fi
+          git merge --no-edit upstream/master
+          git push origin master
